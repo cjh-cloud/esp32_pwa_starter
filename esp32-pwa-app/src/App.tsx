@@ -82,18 +82,40 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
+
         <h2>ESP32 Wifi Setup</h2>
-        <button id="ble" onClick={() => connectBluetooth()}>Connect Device</button>
 
-        <p>Connected to: {connected}</p>
+        <hr className='hr'></hr>
 
-        <label className="ssid">SSID:</label><br/>
-        <input type="text" id="ssid" name="ssid" placeholder="Wifi name" /><br/> {/*<!-- TODO : drop down for wifi networks? --> */}
-        <label className="pwd">Password:</label><br/>
-        <input type="password" id="pwd" name="pwd" />
-        <button id="wifi" onClick={() => connectWifi()}>Connect Wifi</button>
+        <div className='container'>
+          <button className='button' id="ble" onClick={() => connectBluetooth()}>Connect Bluetooth</button>
+          <br />
+          <label>Connected to: {connected}</label>
+        </div>
 
-        <RgbColorPicker color={color} onChange={sendrgb} />
+        <hr className='hr'></hr>
+
+        <div className='container'>
+          <div className='container'>
+            <label className="ssid">SSID: </label>
+            <input type="text" id="ssid" name="ssid" placeholder="Wifi name" /><br/> {/*<!-- TODO : drop down for wifi networks? --> */}
+          {/* </div>
+          <div className='container'> */}
+            <label className="pwd">Password: </label>
+            <input type="password" id="pwd" name="pwd" />
+          </div>
+          <div className='container'>
+            <button className='button' id="wifi" onClick={() => connectWifi()}>Connect Wifi</button>
+          </div>
+        </div>
+
+        <hr className='hr'></hr>
+
+        <div className='container colourpicker'>
+          <RgbColorPicker color={color} onChange={sendrgb} />
+        </div>
+
+        <hr className='hr'></hr>
         
       </header>
     </div>
