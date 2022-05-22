@@ -7,7 +7,7 @@ Running the project in dev mode:
 ```
 git clone <this-repo>
 cd esp32-pwa-app
-npm run dev
+npm run start
 ```
 
 Hosting a prod build to test PWA install:
