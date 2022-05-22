@@ -1,14 +1,24 @@
 # ESP32 PWA Starter
 
 ## React PWA
+https://create-react-app.dev/docs/making-a-progressive-web-app/#offline-first-considerations
 
+Running the project in dev mode:
 ```
 git clone <this-repo>
-cd vite-project
+cd esp32-pwa-app
 npm run dev
 ```
 
-CloudFlare tunnel
+Hosting a prod build to test PWA install:
+```
+
+
+npm run build
+npx serve -s build
+```
+
+CloudFlare tunnel - works with both examples above
 https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide
 
 > .\cloudflared.exe tunnel --url http://localhost:3000
@@ -32,3 +42,10 @@ https://www.aranacorp.com/en/using-the-eeprom-with-the-esp32/
 
 See the following for generating UUIDs:
 https://www.uuidgenerator.net/
+
+Curl example to change LED strip colour:
+`curl -d '{"red":5, "green":10, "blue":100}' -H "Content-Type: application/json" -X POST http://192.168.1.68:80/led`
+
+https://randomnerdtutorials.com/esp32-set-custom-hostname-arduino/
+https://randomnerdtutorials.com/esp32-static-fixed-ip-address-arduino-ide/
+https://www.survivingwithandroid.com/esp32-rest-api-esp32-api-server/

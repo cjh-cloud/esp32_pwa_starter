@@ -1,50 +1,20 @@
 import React from 'react';
-// import logo from './logo.svg';
-// import './App.css';
-
-// function App() {
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>
-//           Edit <code>src/App.tsx</code> and save to reload.
-//         </p>
-//         <a
-//           className="App-link"
-//           href="https://reactjs.org"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           Learn React
-//         </a>
-//       </header>
-//     </div>
-//   );
-// }
-
-// export default App;
-
 import { useState } from 'react'
-import logo from './logo.svg'
 import './App.css'
 
+import { RgbColorPicker } from 'react-colorful';
+
 let device: any, server: any, service: any, characteristic: any;
-// import './bluetooth.js'
 
 function App() {
-  // const [count, setCount] = useState(0)
   let [connected, setConnected] = useState<string | null>(null)
+  const [color, setColor] = useState({ r: 255, g: 255, b: 255 }); // default white
 
   async function connectWifi() {
       console.log("connect wifi...");
       const ssid_Name = document.getElementById('ssid');
       const password = document.getElementById('pwd');
-      // console.log(ssid_Name.value);
-      // console.log(password.value);
       var encoder = new TextEncoder();
-      // await characteristic.writeValue(encoder.encode(ssid_Name.value));
-      // await characteristic.writeValue(encoder.encode(password.value));
       var thing = {
         // @ts-ignore
         ssid: ssid_Name.value,
@@ -57,7 +27,6 @@ function App() {
   async function connectBluetooth() {
 
       // Connect Device
-      // const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
       // @ts-ignore
       device = await navigator.bluetooth.requestDevice(
           { 
@@ -91,12 +60,29 @@ function App() {
 
   }
 
+  // curl -d '{"red":250, "green":10, "blue":100}' -H "Content-Type: application/json" -X POST http://cdawgsdongle:80/led
+  async function sendrgb(event: any) {
+    setColor(event);
+
+    fetch('http://192.168.1.253:80/led', {
+      mode: 'no-cors',
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        red: event.r,
+        green: event.g,
+        blue: event.b
+      })
+    })
+  }
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-
-        <h2>Bluetooth 4</h2>
+        <h2>ESP32 Wifi Setup</h2>
         <button id="ble" onClick={() => connectBluetooth()}>Connect Device</button>
 
         <p>Connected to: {connected}</p>
@@ -106,6 +92,8 @@ function App() {
         <label className="pwd">Password:</label><br/>
         <input type="password" id="pwd" name="pwd" />
         <button id="wifi" onClick={() => connectWifi()}>Connect Wifi</button>
+
+        <RgbColorPicker color={color} onChange={sendrgb} />
         
       </header>
     </div>

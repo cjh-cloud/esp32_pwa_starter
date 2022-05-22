@@ -4,16 +4,42 @@
 #include <Arduino_JSON.h>
 #include <EEPROM.h>
 #include <WiFi.h>
+#include <WebServer.h>
+#include <Adafruit_NeoPixel.h>
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
+#define PIN 25
+#define STRIPSIZE 3 // Limited by max 256 bytes ram. At 3 bytes/LED you get max ~85 pixels
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(STRIPSIZE, PIN, NEO_GRB + NEO_KHZ800);
+
+String hostname = "cdawgsdongle";
 String ssid_name;
 String ssid_pass;
 
+WebServer server(80);
+
 class MyCallbacks: public BLECharacteristicCallbacks {
-  bool initWiFi(const char* ssid, const char* pass) {
+  public:
+  bool initWiFi(const char* ssid, const char* pass) {    
     WiFi.mode(WIFI_STA);
+
+    // --- Static IP - because PWAs can't do anything smart with UDP or Hostnames
+    // Set your Static IP address
+    IPAddress local_IP(192, 168, 1, 253);
+    // Set your Gateway IP address
+    IPAddress gateway(192, 168, 1, 1);
+    
+    IPAddress subnet(255, 255, 0, 0);
+    IPAddress primaryDNS(8, 8, 8, 8); // optional
+    IPAddress secondaryDNS(8, 8, 4, 4); // optional
+    WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS);
+
+    // --- Dynamic IP but set a hostname
+    // WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    // WiFi.setHostname(hostname.c_str()); // define hostname
+    
     WiFi.begin(ssid, pass);
     Serial.print("Connecting to WiFi ..");
     int count = 0;
@@ -38,9 +64,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
     // if message is object with "ssid" and "pass", connect to wifi with these
     if ((const char*) message["ssid"] != null && (const char*) message["pass"] != null) {
-      Serial.println("YEEEEEBOI");
-      Serial.println((const char*) message["ssid"]);
-      Serial.println(strlen((const char*) message["ssid"]));
+      Serial.println("Received Wifi credentials");
 
       const bool wifi_connected = initWiFi((const char*) message["ssid"], (const char*) message["pass"]);
 
@@ -53,13 +77,10 @@ class MyCallbacks: public BLECharacteristicCallbacks {
     }
   }
 
-  // TODO - get this to work
   void writeStringToEEPROM(int addrOffset, const String &strToWrite) // const char* strToWrite 
   {
     byte len = strToWrite.length(); //strlen(strToWrite); //
     EEPROM.write(addrOffset, len); // write length of string first, so when reading, know how many chars to read
-    Serial.print("LEN...");
-    Serial.println(len);
     for (int i = 0; i < len; i++)
     {
       EEPROM.write(addrOffset + 1 + i, strToWrite[i]);
@@ -79,15 +100,6 @@ class MyServerCallbacks: public BLEServerCallbacks {
   }
 };
 
-// TODO - 
-//String readStringFromEEPROM(int startingAddress, int numBytesToRead)
-//{
-//  String eeprom_msg = "";
-//  for (int i = 0; i < numBytesToRead; i++) {
-//    eeprom_msg += EEPROM.read(startingAddress + i);
-//  }
-//  return eeprom_msg;
-//}
 String readStringFromEEPROM(int addrOffset)
 {
   int newStrLen = EEPROM.read(addrOffset);
@@ -96,35 +108,65 @@ String readStringFromEEPROM(int addrOffset)
   {
     data[i] = EEPROM.read(addrOffset + 1 + i);
   }
-  data[newStrLen] = '\0'; // !!! NOTE !!! Remove the space between the slash "/" and "0" (I've added a space because otherwise there is a display bug)
+  data[newStrLen] = '\0';
   return String(data);
+}
+
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, c);
+      strip.show();
+      delay(wait);
+  }
+}
+
+void handlePost() {
+  if (server.hasArg("plain") == false) {
+    //handle error here
+  }
+  String body = server.arg("plain");
+  JSONVar jsonDocument = JSON.parse(body.c_str());
+  Serial.print(jsonDocument);
+
+  // Get RGB components
+  int red = jsonDocument["red"];
+  int green = jsonDocument["green"];
+  int blue = jsonDocument["blue"];
+
+  colorWipe(strip.Color(red, green, blue), 25);
+
+  // Respond to the client
+  server.send(200, "application/json", "{}");
+}
+
+void getTest() {
+  Serial.println("Get Test");
+  
+  server.send(200, "application/json", "{}");
 }
 
 void setup() {
   Serial.begin(115200);
 
+  strip.begin();
+  strip.setBrightness(100); // set accordingly
+  strip.show(); // Initialize all pixels to 'off'
+
   EEPROM.begin(512);
 
-//  Serial.println("Reading from EEPROM!");
-//  String ssid_name_length = readStringFromEEPROM(0, 1); // If this returns a char, that means there are Wifi creds saved that we should try
-//  Serial.println("ONE");
-//  Serial.println(ssid_name_length);
-//  Serial.println("TWO");
-//  if (ssid_name_length != null) {
-//    ssid_name = readStringFromEEPROM(1, ssid_name_length.toInt());
-//    String ssid_pass_length = readStringFromEEPROM(ssid_name_length.toInt() + 1, 1);
-//    if (ssid_pass_length != null) {
-//      ssid_pass = readStringFromEEPROM(ssid_name_length.toInt() + 2, ssid_pass_length.toInt());
-//
-//      // TODO  - connect to Wifi!
-//      Serial.println(ssid_name);
-//      Serial.println(ssid_pass);
-//    }
-//  }
-//  ssid_name = readStringFromEEPROM(0);
-//  ssid_pass = readStringFromEEPROM(ssid_name.length());
-  
-  Serial.println("Starting BLE work!");
+  ssid_name = readStringFromEEPROM(0);
+  ssid_pass = readStringFromEEPROM(ssid_name.length()+1);
+
+  if (ssid_name != null && ssid_pass != null) {
+    MyCallbacks wifi_handler; // instantiate this Class just to use the initWifi method
+    bool wifi_con = wifi_handler.initWiFi(ssid_name.c_str(), ssid_pass.c_str());
+    Serial.print("Connected to Wifi: " + wifi_con);
+    server.on("/led", HTTP_POST, handlePost);
+    server.on("/test", getTest);
+    // start server     
+    server.begin();
+  }
 
   BLEDevice::init("cdawgs_dongle");
   BLEServer *pServer = BLEDevice::createServer();
@@ -165,16 +207,6 @@ void writeStringToEEPROM(int addrOffset, const String &strToWrite)
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  delay(2000);
-  String retrievedString = readStringFromEEPROM(0);
-  Serial.print("The String we read from EEPROM: ");
-  Serial.println(EEPROM.read(0));
-  Serial.println(retrievedString);
-//  Serial.println(ssid_name);
-//  Serial.println(ssid_pass);
-  Serial.println(EEPROM.read(13)); // retrievedString.length()
-  String pass = readStringFromEEPROM(retrievedString.length()+1);
-  Serial.println(pass);
-  
+  // Serial.println(WiFi.localIP());
+  server.handleClient(); // This is for the REST API to work
 }
