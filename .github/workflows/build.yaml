@@ -12,11 +12,11 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: 14.x
-    - name: npm install, build, and test
+    - name: npm install and build
       run: |
-        cd ./esp32-pwa-app/
         npm ci
         npm run build --if-present
+      working-directory: esp32-pwa-app
       env:
         CI: true
     - name: Archive production build artifacts
