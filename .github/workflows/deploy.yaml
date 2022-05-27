@@ -9,10 +9,29 @@ on:
       - main
 
 jobs:
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Use Node.js 14.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 14.x
+    - name: Install infra dependencies
+      run: npm i
+      working-directory: infra
+    - name: Pulumi Up
+      uses: pulumi/actions@v3
+      with:
+        command: up
+        stack-name: dev
+        work-dir: infra
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
   deployment:
+    needs: infra
     runs-on: ubuntu-latest
     environment: dev
-
     steps:
     - name: Download build artifact
       uses: dawidd6/action-download-artifact@v2
