@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
 
 const DOMAIN = 'cjscloud.city';
 const SUB = 'app';
@@ -17,7 +16,7 @@ const bAcl = new aws.s3.BucketAclV2("bAcl", {
 });
 
 // ACM SSL Cert for CloudFront Distrbution
-const appCertificate = new aws.acm.Certificate("cert", {
+const appCert = new aws.acm.Certificate("cert", {
     domainName: `${SUB}.${DOMAIN}`,
     tags: {
         Environment: pulumi.getStack(),
@@ -26,35 +25,30 @@ const appCertificate = new aws.acm.Certificate("cert", {
 });
 
 // Route53 records
-const selected = aws.route53.getZone({
-    name: `${DOMAIN}.`,
-    privateZone: false,
-});
-
 const hostedZoneId = aws.route53.getZone(
     { name: DOMAIN }, 
     { async: true }
 ).then(zone => zone.zoneId);
 
 const certRecord = new aws.route53.Record("cert", {
-    zoneId: selected.then((selected: { zoneId: any; }) => selected.zoneId),
-    name: appCertificate.domainValidationOptions[0].resourceRecordName,
-    type: appCertificate.domainValidationOptions[0].resourceRecordType,
+    zoneId: hostedZoneId,
+    name: appCert.domainValidationOptions[0].resourceRecordName,
+    type: appCert.domainValidationOptions[0].resourceRecordType,
     ttl: 300,
-    records: [appCertificate.domainValidationOptions[0].resourceRecordValue],
+    records: [appCert.domainValidationOptions[0].resourceRecordValue],
 });
 
 const certificateValidation = new aws.acm.CertificateValidation("certificateValidation", {
-    certificateArn: appCertificate.arn,
+    certificateArn: appCert.arn,
     validationRecordFqdns: [certRecord.fqdn],
 });
 
 // CloudFront
-const oai = new aws.cloudfront.OriginAccessIdentity("example", {
-    comment: "Some comment",
+const oai = new aws.cloudfront.OriginAccessIdentity("oai", {
+    comment: "OAI for App bucket and cloudfront distribution",
 });
 
-const s3OriginId = "myS3Origin";
+const s3OriginId = "AppS3Origin";
 const s3Distribution = new aws.cloudfront.Distribution("s3Distribution", {
     origins: [{
         domainName: bucketV2.bucketRegionalDomainName,
@@ -128,7 +122,7 @@ const s3Distribution = new aws.cloudfront.Distribution("s3Distribution", {
         Environment: pulumi.getStack(),
     },
     viewerCertificate: {
-        acmCertificateArn: appCertificate.arn,
+        acmCertificateArn: appCert.arn,
         cloudfrontDefaultCertificate: false,
         minimumProtocolVersion: 'TLSv1.2_2021',
         sslSupportMethod: 'sni-only'
@@ -137,15 +131,14 @@ const s3Distribution = new aws.cloudfront.Distribution("s3Distribution", {
 
 // DNS record for CloudFront distribution
 const appRecord = new aws.route53.Record("app", {
-    zoneId: hostedZoneId, // selected.then((selected: { zoneId: any; }) => selected.zoneId),
-    name: appCertificate.domainValidationOptions[0].domainName, // selected.then((selected: { name: any; }) => `${SUB}.${selected.name}`),
+    zoneId: hostedZoneId,
+    name: appCert.domainValidationOptions[0].domainName,
     type: "CNAME",
     ttl: 300,
     records: [s3Distribution.domainName],
 });
 
-
-const s3Policy = aws.iam.getPolicyDocumentOutput({
+const s3PolicyDoc = aws.iam.getPolicyDocumentOutput({
     statements: [{
         actions: ["s3:GetObject"],
         resources: [
@@ -158,7 +151,8 @@ const s3Policy = aws.iam.getPolicyDocumentOutput({
         }],
     }],
 });
-const example = new aws.s3.BucketPolicy("example", {
+
+const s3Policy = new aws.s3.BucketPolicy("example", {
     bucket: bucketV2.id,
-    policy: s3Policy.apply(s3Policy => s3Policy.json),
+    policy: s3PolicyDoc.apply(s3PolicyDoc => s3PolicyDoc.json),
 });
