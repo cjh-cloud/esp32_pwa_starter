@@ -152,7 +152,7 @@ const s3PolicyDoc = aws.iam.getPolicyDocumentOutput({
     }],
 });
 
-const s3Policy = new aws.s3.BucketPolicy("example", {
+const s3Policy = new aws.s3.BucketPolicy("s3Policy", {
     bucket: bucketV2.id,
     policy: s3PolicyDoc.apply(s3PolicyDoc => s3PolicyDoc.json),
 });
